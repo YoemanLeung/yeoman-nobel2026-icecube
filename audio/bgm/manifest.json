@@ -1,0 +1,22 @@
+{
+ "generated": "2026-10-07",
+ "lufs": -30,
+ "timeline": "316a6cf943da",
+ "stems": {
+  "intro": {
+   "file": "intro.m4a",
+   "dur": 12.916,
+   "starts": 0
+  },
+  "tour": {
+   "file": "tour.m4a",
+   "dur": 355.93,
+   "starts": 9.915999999999999
+  },
+  "outro": {
+   "file": "outro.m4a",
+   "dur": 14.171,
+   "starts": null
+  }
+ }
+}

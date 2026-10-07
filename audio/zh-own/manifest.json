@@ -1,0 +1,165 @@
+{
+ "id": "zh-own",
+ "lang": "zh",
+ "voice": "Yeoman",
+ "kind": "recorded",
+ "generated": "2026-10-07",
+ "clips": {
+  "intro": {
+   "file": "intro.mp4",
+   "dur": 8.616
+  },
+  "c1a": {
+   "file": "c1a.mp4",
+   "dur": 9.203
+  },
+  "c1b": {
+   "file": "c1b.mp4",
+   "dur": 12.656
+  },
+  "c1c": {
+   "file": "c1c.mp4",
+   "dur": 11.425
+  },
+  "c1d": {
+   "file": "c1d.mp4",
+   "dur": 8.471
+  },
+  "c1e": {
+   "file": "c1e.mp4",
+   "dur": 10.645
+  },
+  "c2a": {
+   "file": "c2a.mp4",
+   "dur": 6.678
+  },
+  "c2b": {
+   "file": "c2b.mp4",
+   "dur": 4.533
+  },
+  "c2c": {
+   "file": "c2c.mp4",
+   "dur": 13.194
+  },
+  "c2d": {
+   "file": "c2d.mp4",
+   "dur": 8.873
+  },
+  "c2e": {
+   "file": "c2e.mp4",
+   "dur": 3.528
+  },
+  "c3a": {
+   "file": "c3a.mp4",
+   "dur": 4.179
+  },
+  "c3b": {
+   "file": "c3b.mp4",
+   "dur": 8.317
+  },
+  "c3c": {
+   "file": "c3c.mp4",
+   "dur": 4.146
+  },
+  "c3d": {
+   "file": "c3d.mp4",
+   "dur": 9.744
+  },
+  "c3e": {
+   "file": "c3e.mp4",
+   "dur": 8.945
+  },
+  "c3f": {
+   "file": "c3f.mp4",
+   "dur": 9.472
+  },
+  "c3g": {
+   "file": "c3g.mp4",
+   "dur": 8.801
+  },
+  "c4a": {
+   "file": "c4a.mp4",
+   "dur": 5.292
+  },
+  "c4b": {
+   "file": "c4b.mp4",
+   "dur": 10.029
+  },
+  "c4c": {
+   "file": "c4c.mp4",
+   "dur": 4.855
+  },
+  "c4d": {
+   "file": "c4d.mp4",
+   "dur": 12.337
+  },
+  "c4e": {
+   "file": "c4e.mp4",
+   "dur": 10.134
+  },
+  "c4f": {
+   "file": "c4f.mp4",
+   "dur": 7.512
+  },
+  "c4g": {
+   "file": "c4g.mp4",
+   "dur": 9.486
+  },
+  "c4h": {
+   "file": "c4h.mp4",
+   "dur": 10.794
+  },
+  "c5a": {
+   "file": "c5a.mp4",
+   "dur": 6.472
+  },
+  "c5b": {
+   "file": "c5b.mp4",
+   "dur": 9.372
+  },
+  "c5c": {
+   "file": "c5c.mp4",
+   "dur": 4.93
+  },
+  "c5d": {
+   "file": "c5d.mp4",
+   "dur": 13.573
+  },
+  "c5e": {
+   "file": "c5e.mp4",
+   "dur": 8.271
+  },
+  "c5f": {
+   "file": "c5f.mp4",
+   "dur": 9.157
+  },
+  "c5g": {
+   "file": "c5g.mp4",
+   "dur": 11.474
+  },
+  "c5h": {
+   "file": "c5h.mp4",
+   "dur": 8.609
+  },
+  "c5i": {
+   "file": "c5i.mp4",
+   "dur": 11.512
+  },
+  "c5j": {
+   "file": "c5j.mp4",
+   "dur": 10.105
+  },
+  "c5k": {
+   "file": "c5k.mp4",
+   "dur": 3.468
+  },
+  "c5l": {
+   "file": "c5l.mp4",
+   "dur": 8.139
+  },
+  "outro": {
+   "file": "outro.mp4",
+   "dur": 8.671
+  }
+ }
+}

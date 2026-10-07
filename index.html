@@ -6,6 +6,19 @@
   <title>冰立方 IceCube</title>
   <meta name="description" content="一部可以暂停、倒放和亲手接管的科学短片：一颗来自约 40 亿光年外的中微子，怎样在南极冰下一立方公里的探测器里留下光，又怎样被找回方向。" />
   <meta name="theme-color" content="#02070d" />
+  <!-- the card other sites and apps show for a link; share.jpg comes from web/_tools/cover.mjs, and
+       web/_tools/publish_pages.py makes its address absolute (crawlers do not resolve it) and adds og:url -->
+  <meta property="og:url" content="https://yoemanleung.github.io/yeoman-nobel2026-icecube/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="星野旅人 Yeoman" />
+  <meta property="og:title" content="冰立方 IceCube：南极冰下，抓住幽灵粒子 | 2026 诺贝尔物理学奖" />
+  <meta property="og:description" content="一部可以暂停、倒放和亲手接管的科学短片：一颗来自约 40 亿光年外的中微子，怎样在南极冰下一立方公里的探测器里留下光，又怎样被找回方向。" />
+  <meta property="og:image" content="https://yoemanleung.github.io/yeoman-nobel2026-icecube/share.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="小猫 Yeoman 和冰立方探测器里的一次中微子事件，标题：南极冰下，抓住幽灵粒子" />
+  <meta property="og:locale" content="zh_CN" />
+  <meta name="twitter:card" content="summary_large_image" />
   <!-- self-hosted font subsets (web/_tools/fonts.py): no Google Fonts, which mainland China cannot reach -->
   <link rel="stylesheet" href="fonts/fonts.css" />
   <!-- the tab icon: the cube of ice with a yellow point, the neutrino's light (inline, so no /favicon.ico request) -->
@@ -21,6 +34,8 @@
   </script>
 </head>
 <body>
+  <!-- WeChat does not read og:image: for a shared link it takes the first large image of the page -->
+  <div hidden><img src="https://yoemanleung.github.io/yeoman-nobel2026-icecube/share.jpg" alt="" width="1200" height="630" /></div>
   <div id="app" class="booting">
     <div id="gl"></div>
     <div id="labels" aria-hidden="true"></div>

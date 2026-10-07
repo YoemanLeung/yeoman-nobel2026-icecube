@@ -5,15 +5,31 @@
 // If no clips can be loaded the narration simply stays silent (subtitles carry everything).
 // Clips are fetched into blob URLs: a blob is always seekable, while media from a server without HTTP range
 // support cannot seek (Chrome resets currentTime to 0), which would break starting a line mid-way.
+// One media element plays every line in turn: iOS lets an element play outside a tap only after a tap has
+// unlocked it (see mixer.js), and phones limit how many media players a page may keep.
 
 export function createNarration({ base = 'audio', mixer = null } = {}) {
   let index = null;
   let manifest = null;
   let setId = null;
-  let lang = null;
   let enabled = true;
-  let current = null; // { key, el, entry, started }
-  const cache = new Map(); // key -> { el, ready, blobUrl }
+  let current = null; // { key, clip, started, settled, drift }
+  const clips = new Map(); // key -> { url, file, failed }: url is the blob URL (or the file itself) once fetched
+  const el = new Audio();
+  el.preload = 'auto';
+  if (mixer) mixer.connect(el, 'voice'); // the viewer's voice level (works on iOS too)
+  // a page whose security policy refuses blob: media falls back to the file itself; a file that fails too is skipped
+  el.addEventListener('error', () => {
+    const c = current && current.clip;
+    if (!c || el.getAttribute('src') !== c.url) return;
+    if (c.url === c.file) {
+      c.failed = true;
+      return;
+    }
+    URL.revokeObjectURL(c.url);
+    c.url = c.file;
+    current.started = false; // restart at the right offset
+  });
 
   async function loadIndex() {
     if (index) return index;
@@ -26,18 +42,16 @@ export function createNarration({ base = 'audio', mixer = null } = {}) {
     return index;
   }
 
-  function clearCache() {
-    cache.forEach((entry) => {
-      entry.el.removeAttribute('src');
-      if (entry.blobUrl) URL.revokeObjectURL(entry.blobUrl);
-    });
-    cache.clear();
+  function clearClips() {
+    stop();
+    el.removeAttribute('src');
+    el.load(); // let go of the old clip
+    clips.forEach((c) => c.url && c.url !== c.file && URL.revokeObjectURL(c.url));
+    clips.clear();
   }
 
   async function useLanguage(next) {
-    lang = next;
-    stop();
-    clearCache();
+    clearClips();
     manifest = null;
     const idx = await loadIndex();
     for (const id of idx[next] || []) {
@@ -56,55 +70,47 @@ export function createNarration({ base = 'audio', mixer = null } = {}) {
 
   function clip(key) {
     if (!manifest || !manifest.clips[key]) return null;
-    if (!cache.has(key)) {
-      const url = `${base}/${setId}/${manifest.clips[key].file}`;
-      const entry = { el: new Audio(), ready: false, blobUrl: null };
-      entry.el.preload = 'auto';
-      if (mixer) mixer.connect(entry.el, 'voice'); // the viewer's voice level (works on iOS too)
-      // a page whose security policy refuses blob: media falls back to the file itself
-      entry.el.addEventListener('error', () => {
-        if (!entry.blobUrl || entry.el.src !== entry.blobUrl) return;
-        URL.revokeObjectURL(entry.blobUrl);
-        entry.blobUrl = null;
-        entry.el.src = url;
-        if (current && current.entry === entry) current.started = false; // restart at the right offset
-      });
-      cache.set(key, entry);
-      fetch(url)
+    if (!clips.has(key)) {
+      const file = `${base}/${setId}/${manifest.clips[key].file}`;
+      const c = { url: null, file, failed: false };
+      clips.set(key, c);
+      fetch(file)
         .then((res) => (res.ok ? res.blob() : Promise.reject(new Error(`HTTP ${res.status}`))))
         .then((blob) => {
-          if (cache.get(key) !== entry) return; // language switched meanwhile
-          entry.blobUrl = URL.createObjectURL(blob);
-          entry.el.src = entry.blobUrl;
-          entry.ready = true;
+          if (clips.get(key) === c) c.url = URL.createObjectURL(blob); // unless the language switched meanwhile
         })
         .catch(() => {
-          if (cache.get(key) !== entry) return;
-          entry.el.src = url; // stream instead (plays, but may not seek on such a server)
-          entry.ready = true;
+          if (clips.get(key) === c) c.url = file; // stream instead (plays, but may not seek on such a server)
         });
     }
-    return cache.get(key);
+    return clips.get(key);
+  }
+
+  function seek(t) {
+    try {
+      el.currentTime = t;
+    } catch {
+      /* not seekable yet: the start settles it once the clip's metadata is in */
+    }
   }
 
   function stop() {
     if (current) {
-      current.el.pause();
+      el.pause();
       current = null;
     }
   }
 
-  function begin(c, offset) {
+  function begin(offset) {
+    if (el.getAttribute('src') !== current.clip.url) el.src = current.clip.url;
     if (mixer) mixer.resume();
-    try {
-      c.el.currentTime = offset;
-    } catch {
-      /* not seekable yet: plays from the start */
-    }
-    c.el.play().catch(() => {
-      /* autoplay blocked until the viewer interacts */
+    seek(offset);
+    el.play().catch(() => {
+      /* not allowed until the viewer's first tap: retried on a later frame */
     });
-    c.started = true;
+    current.started = true;
+    current.settled = false;
+    current.drift = 0;
   }
 
   return {
@@ -117,7 +123,7 @@ export function createNarration({ base = 'audio', mixer = null } = {}) {
     },
     /** The clip now playing (for inspection): {key, time, paused} or null. */
     get current() {
-      return current ? { key: current.key, time: current.el.currentTime, paused: current.el.paused } : null;
+      return current ? { key: current.key, time: el.currentTime, paused: el.paused } : null;
     },
     get enabled() {
       return enabled;
@@ -143,7 +149,7 @@ export function createNarration({ base = 'audio', mixer = null } = {}) {
         return;
       }
       if (!cue || !playing) {
-        if (current && !playing) current.el.pause();
+        if (current && !playing) el.pause();
         if (!cue) stop();
         if (!playing) return;
       }
@@ -156,31 +162,47 @@ export function createNarration({ base = 'audio', mixer = null } = {}) {
       }
       if (!current || current.key !== cue.key) {
         stop();
-        const entry = clip(cue.key);
-        if (!entry) return;
-        current = { key: cue.key, el: entry.el, entry, started: false };
+        const c = clip(cue.key);
+        if (!c) return;
+        current = { key: cue.key, clip: c, started: false, settled: false, drift: 0 };
       }
-      if (!current.entry.ready) return; // still loading: starts on a later frame, at the right offset
+      if (!current.clip.url || current.clip.failed) return; // still loading (starts on a later frame) or unplayable
       if (!current.started) {
-        begin(current, offset);
+        begin(offset);
         return;
+      }
+      current.drift = el.currentTime - offset;
+      // a start made before the clip's metadata arrived may have missed its offset: settle it once, when it can seek
+      if (!current.settled && el.readyState >= 1) {
+        current.settled = true;
+        if (Math.abs(current.drift) > 0.25) {
+          seek(offset);
+          current.drift = 0;
+        }
       }
       // same clip: resume if paused, and re-seek if the clock drifted far (e.g. after a scrub); a small lead of the
       // voice is reported instead (`lead`), and the page's clock catches up with it
-      current.drift = current.el.currentTime - offset;
-      const reseek = current.el.paused ? Math.abs(current.drift) > 0.25 : Math.abs(current.drift) > 1.5;
+      const reseek = el.paused ? Math.abs(current.drift) > 0.25 : Math.abs(current.drift) > 1.5;
       if (reseek) {
-        current.el.currentTime = offset;
+        seek(offset);
         current.drift = 0; // nothing for the clock to catch up after a re-seek
       }
-      if (current.el.paused) {
+      if (el.paused) {
         if (mixer) mixer.resume();
-        current.el.play().catch(() => {});
+        el.play().catch(() => {});
       }
+    },
+    /** A line's clip is playing (the page's clock then follows the voice alone). */
+    get speaking() {
+      return Boolean(current && current.started && !el.paused);
     },
     /** Seconds the playing clip is ahead of the tour clock (0 when none plays): the page adds it to its next frame. */
     get lead() {
-      return current && current.started && !current.el.paused && current.drift > 0 ? current.drift : 0;
+      return current && current.started && !el.paused && current.drift > 0 ? current.drift : 0;
+    },
+    /** Pause the clip at once, e.g. when the page is hidden (no frames run then); the next sync resumes it. */
+    pause() {
+      el.pause();
     },
     stop,
   };

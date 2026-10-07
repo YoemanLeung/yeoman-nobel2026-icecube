@@ -1,5 +1,5 @@
 // Entry point: builds the science model, the scenes, the director and the UI, then runs one loop.
-// Deep links for review and screenshots: #ch=4&t=20&start=0&lang=en&size=real&free&debug
+// Deep links for review and screenshots: #ch=4&t=20&start=0&lang=en&size=real&free&debug (#audiodebug: sound state)
 
 import * as THREE from 'three';
 import { buildArray } from './science/geometry.js';
@@ -22,6 +22,9 @@ import { createAudio } from './ui/audio.js';
 import { createNarration } from './ui/narration.js';
 import { createMusic } from './ui/music.js';
 import { createMixer } from './ui/mixer.js';
+import { createVolumePanel } from './ui/volume.js';
+import { createWakeLock } from './ui/wakelock.js';
+import { createAudioDebug } from './ui/audiodebug.js';
 import { createFlyLayer } from './ui/flylayer.js';
 import { detectTier, savedChoice, saveChoice, createFpsGuard, ORDER } from './scene/quality.js';
 import { timeColor } from './core/math.js';
@@ -123,6 +126,15 @@ function boot() {
   if (exportMode) narration.setEnabled(false); // the exporter mixes the clips into the soundtrack itself
   const music = createMusic({ base: 'audio/bgm', mixer });
   if (!exportMode) music.load().then(() => updateButtons()); // the exporter mixes the score itself, too
+  const wake = createWakeLock(); // phones: the screen stays on while the tour plays
+  // a hidden page (another app, a locked screen) runs no frames: the sound stops with it, and the website's tour
+  // pauses, as a video would; back on the page, the tap on play also restarts the sound on iOS
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'hidden') return;
+    if (!filmMode && started && !userMode && director.playing) director.pause();
+    narration.pause();
+    music.pause();
+  });
   const cat = document.getElementById('cat');
   const narrow = window.matchMedia('(max-width: 760px)');
   const fitCat = () => cat.setAttribute('size', narrow.matches ? '84' : '150');
@@ -384,31 +396,7 @@ function boot() {
     narration.setEnabled(!narration.enabled);
     updateButtons();
   });
-  // the volume panel: a voice slider and a music slider (0-100 %), remembered per viewer
-  const syncSliders = () => {
-    [[els.volVoice, 'voice'], [els.volMusic, 'music']].forEach(([input, bus]) => {
-      input.value = String(Math.round(mixer.level(bus) * 100));
-      input.nextElementSibling.textContent = `${input.value}%`;
-    });
-  };
-  const showVolume = (on) => {
-    els.volumePanel.hidden = !on;
-    els.btnVolume.setAttribute('aria-expanded', String(on));
-    if (on) syncSliders();
-  };
-  els.btnVolume.addEventListener('click', (e) => {
-    e.stopPropagation();
-    showVolume(els.volumePanel.hidden);
-  });
-  [[els.volVoice, 'voice'], [els.volMusic, 'music']].forEach(([input, bus]) =>
-    input.addEventListener('input', () => {
-      mixer.setLevel(bus, Number(input.value) / 100);
-      input.nextElementSibling.textContent = `${input.value}%`;
-    }),
-  );
-  els.volumePanel.addEventListener('click', (e) => e.stopPropagation());
-  document.addEventListener('click', () => showVolume(false));
-  document.addEventListener('keydown', (e) => e.key === 'Escape' && showVolume(false));
+  createVolumePanel({ els, mixer }); // voice and music sliders, remembered per viewer
   els.btnQuality.addEventListener('click', () => {
     const cycle = ['auto', 'high', 'medium', 'low'];
     qualityChoice = cycle[(cycle.indexOf(qualityChoice) + 1) % cycle.length];
@@ -532,6 +520,7 @@ function boot() {
     } else if (type === 'seek' && started && director.T < director.total - 1e-3 && bookends.phase !== 'intro') {
       bookends.toTour();
     }
+    if (type === 'seek') music.resync();
   });
   reducedQuery.addEventListener('change', (e) => (reduced = e.matches));
 
@@ -646,6 +635,7 @@ function boot() {
         ? { name: 'tour', time: director.T, playing: director.playing }
         : null;
     music.sync(want, Boolean(line));
+    wake.hold(!exportMode && (Boolean(book) || (started && !userMode && director.playing)));
     // film: the chapter's name comes up for a moment when it begins (no top bar in the film version), near the
     // top; a chapter whose opening shot needs that space sets `cardAt` (s) and `cardTop` (fraction of the height)
     if (filmMode && chapterCard) {
@@ -726,9 +716,12 @@ function boot() {
   }
 
   function loop(now) {
-    // a frame advances the clock by at most 0.1 s, so after slow frames (the start of the tour is the slowest) the
-    // voice runs ahead: the clock catches up with it rather than pulling the voice back, which sounded like a stutter
-    const dt = Math.min(0.1, (now - last) / 1000) + Math.min(0.5, narration.lead);
+    // a frame advances the clock by at most 0.1 s, so after slow frames (the start of the tour is the slowest, and a
+    // phone is slower still) the voice and the score run ahead: the clock catches up with them rather than pulling
+    // them back, which sounded like a stutter or a gap. While a line is spoken it follows the voice alone (catching up
+    // with the score then would leave the voice behind); between lines it catches up with the score.
+    const lead = narration.speaking ? narration.lead : music.lead;
+    const dt = Math.min(0.1, (now - last) / 1000) + Math.min(0.5, lead);
     last = now;
     renderFrame(dt);
     requestAnimationFrame(loop);
@@ -762,6 +755,7 @@ function boot() {
   if (params.has('free')) freeExplore();
   if (params.has('debug') || exportMode) window.__ice = { array, director, world, game, chapters, renderFrame, narration, music, cat, hdrSweep: (o) => hdrSweep({ director, world, renderFrame }, o), get event() { return event; }, precomputing };
   if (exportMode) window.__ice.export = createExportHooks();
+  if (params.has('audiodebug')) createAudioDebug({ mixer, narration, music, wake });
   stage.snapToTour();
   if (!exportMode) requestAnimationFrame(loop);
 
